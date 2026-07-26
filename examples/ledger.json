@@ -1,0 +1,1 @@
+{"version":1,"source":{"title":"Example Novel","edition":"First edition"},"adaptations":[{"id":"film","title":"Example Film","year":2025}],"differences":[{"id":"ending-choice","adaptation":"film","category":"ending","significance":"major","source_version":"The traveler leaves the town.","adaptation_version":"The traveler remains to rebuild.","evidence":"Closing scene"}]}
