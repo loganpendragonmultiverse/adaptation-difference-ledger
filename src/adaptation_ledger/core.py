@@ -63,6 +63,9 @@ def validate(payload: Any) -> dict[str, Any]:
         for field in ("source_version", "adaptation_version"):
             if not isinstance(item.get(field), str) or not item[field]:
                 raise LedgerError(f"Difference {item['id']} needs {field}.")
+        for field in ("source_anchor", "adaptation_anchor", "evidence"):
+            if field in item and not isinstance(item[field], str):
+                raise LedgerError(f"Difference {item['id']} needs text for {field}.")
     return payload
 
 
