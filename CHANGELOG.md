@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0 - Unreleased
+
+- Add `--baseline baseline.json` to `--import-csv edited.csv --format json` for three-way review against the current ledger.
+
 ## 1.1.0 - 2026-09-07
 
 - Add side-by-side HTML review with scene/chapter anchors and filters, plus previewed stable-ID CSV merging.

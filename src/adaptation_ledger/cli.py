@@ -21,10 +21,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--merged-output", type=Path, help="Write the reviewed merge to a new ledger"
     )
+    parser.add_argument(
+        "--baseline", type=Path, help="Explicit baseline ledger for three-way CSV review"
+    )
     parser.add_argument("--output", type=Path)
     try:
         args = parser.parse_args(argv)
         ledger = load(args.ledger)
+        if args.baseline and not args.import_csv:
+            raise LedgerError("--baseline requires --import-csv.")
         if args.merged_output and not args.import_csv:
             raise LedgerError("--merged-output requires --import-csv.")
         targets = [path for path in (args.output, args.merged_output) if path]
@@ -35,7 +40,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise LedgerError(f"Output already exists: {path}")
         preview = None
         if args.import_csv:
-            ledger, preview = merge_csv(ledger, args.import_csv.read_text(encoding="utf-8"))
+            ledger, preview = merge_csv(
+                ledger,
+                args.import_csv.read_text(encoding="utf-8"),
+                baseline=load(args.baseline) if args.baseline else None,
+            )
+            if args.merged_output and preview.get("conflicts"):
+                raise LedgerError(
+                    "Unresolved three-way conflicts; preview without --merged-output."
+                )
         result = summarize(ledger, adaptations=set(args.adaptation) or None)
         if preview is not None:
             result["import_preview"] = preview
