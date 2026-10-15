@@ -23,8 +23,12 @@ FIELDS = (
 )
 
 
-def merge_csv(ledger: dict[str, Any], text: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def merge_csv(
+    ledger: dict[str, Any], text: str, *, baseline: dict[str, Any] | None = None
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Preview full-record updates by ID; preserve untouched records and ordering."""
+    if baseline is not None:
+        return _three_way_csv(ledger, text, baseline)
     reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
     headers = reader.fieldnames or []
     required = set(FIELDS[:6])
@@ -73,6 +77,91 @@ def merge_csv(ledger: dict[str, Any], text: str) -> tuple[dict[str, Any], dict[s
         "changes": changes,
         "removed": [],
         "note": "Preview only. Omitted IDs are preserved.",
+    }
+
+
+def _three_way_csv(
+    ledger: dict[str, Any], text: str, baseline: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    validate(ledger)
+    validate(baseline)
+    reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
+    headers = reader.fieldnames or []
+    if len(headers) != len(set(headers)) or "id" not in headers or set(headers) - set(FIELDS):
+        raise LedgerError("Baseline CSV needs unique supported headers including id.")
+    bases = {item["id"]: item for item in baseline["differences"]}
+    current = {item["id"]: item for item in ledger["differences"]}
+    merged = copy.deepcopy(ledger)
+    output = {item["id"]: item for item in merged["differences"]}
+    seen: set[str] = set()
+    conflicts = []
+    changes = []
+    for line, row in enumerate(reader, 2):
+        if None in row or any(value is None for value in row.values()):
+            raise LedgerError(f"CSV row {line} has a different number of cells than its header.")
+        identifier = row["id"]
+        if not identifier or identifier in seen:
+            raise LedgerError(f"CSV row {line} has an empty or duplicate difference ID.")
+        seen.add(identifier)
+        base = bases.get(identifier)
+        now = current.get(identifier)
+        incoming = {**(base or {}), **row}
+        # Validate authored records even when conflicts will prevent writing.
+        validate({**ledger, "differences": [incoming]})
+        if (
+            (base is not None and now is not None and base["adaptation"] != now["adaptation"])
+            or (now is not None and incoming["adaptation"] != now["adaptation"])
+            or (base is not None and incoming["adaptation"] != base["adaptation"])
+        ):
+            raise LedgerError(f"ID {identifier} belongs to another adaptation; choose a new ID.")
+        before = copy.deepcopy(now)
+        if base is None:
+            if now is not None and any(now.get(key, "") != value for key, value in row.items()):
+                conflicts.append({"id": identifier, "field": "id", "reason": "concurrent new ID"})
+            elif now is None:
+                output[identifier] = incoming
+                merged["differences"].append(incoming)
+        elif now is None:
+            conflicts.append(
+                {"id": identifier, "field": "id", "reason": "record removed from current"}
+            )
+        else:
+            for key, value in row.items():
+                original, present = base.get(key, ""), now.get(key, "")
+                if value == original:
+                    continue
+                if present != original and present != value:
+                    conflicts.append(
+                        {
+                            "id": identifier,
+                            "field": key,
+                            "baseline": original,
+                            "current": present,
+                            "incoming": value,
+                        }
+                    )
+                else:
+                    output[identifier][key] = value
+        after = output.get(identifier)
+        changes.append(
+            {
+                "id": identifier,
+                "action": "added"
+                if before is None and after is not None
+                else "unchanged"
+                if before == after
+                else "updated",
+                "before": before,
+                "after": copy.deepcopy(after),
+            }
+        )
+    # Keep the preview candidate inspectable; callers must refuse writes if any conflict exists.
+    validate(merged)
+    return merged, {
+        "changes": changes,
+        "conflicts": conflicts,
+        "removed": [],
+        "note": "Three-way preview. Resolve all conflicts before writing; omitted fields and IDs remain current.",
     }
 
 
