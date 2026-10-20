@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2 - 2026-10-20
+
+- Validate typed enum fields, exact integer schema versions and blank required text without tracebacks.
+- Reject malformed quoted CSV and render authored Markdown/HTML literally.
+- Refuse output races and dangling symbolic links through exclusive creation.
+- Include operating documents and the synthetic example in the wheel.
+
 ## 1.2.1
 
 - Correct released documentation labels; package behavior is unchanged.

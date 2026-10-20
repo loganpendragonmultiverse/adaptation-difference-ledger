@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -62,14 +63,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             rendered = markdown(result)
         if preview is not None and args.format != "json":
             print(json.dumps(preview, indent=2), file=sys.stderr)
+        outputs = {}
         if args.merged_output:
-            args.merged_output.parent.mkdir(parents=True, exist_ok=True)
-            args.merged_output.write_text(json.dumps(ledger, indent=2) + "\n", encoding="utf-8")
+            outputs[args.merged_output] = json.dumps(ledger, indent=2) + "\n"
         if args.output:
-            if args.output.exists():
-                raise LedgerError(f"Output already exists: {args.output}")
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(rendered, encoding="utf-8")
+            outputs[args.output] = rendered
+        _write_outputs(outputs)
+        if args.output:
             print(args.output.resolve())
         else:
             print(rendered, end="")
@@ -77,6 +77,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (LedgerError, OSError, UnicodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+
+def _write_outputs(outputs: dict[Path, str]) -> None:
+    """Reserve every new path before writing; roll back only files we created."""
+    reserved = []
+    try:
+        for path in outputs:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            handle = path.open("x", encoding="utf-8")
+            reserved.append((path, handle, os.fstat(handle.fileno())))
+        for path, handle, _ in reserved:
+            handle.write(outputs[path])
+            handle.flush()
+    except (OSError, UnicodeError):
+        for path, handle, identity in reserved:
+            handle.close()
+            try:
+                current = path.lstat()
+                if (current.st_dev, current.st_ino) == (identity.st_dev, identity.st_ino):
+                    path.unlink()
+            except OSError:
+                pass  # Report the original I/O error; never remove another file.
+        raise
+    finally:
+        for _, handle, _ in reserved:
+            handle.close()
 
 
 if __name__ == "__main__":

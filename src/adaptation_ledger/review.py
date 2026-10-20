@@ -27,10 +27,10 @@ def merge_csv(
     ledger: dict[str, Any], text: str, *, baseline: dict[str, Any] | None = None
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Preview full-record updates by ID; preserve untouched records and ordering."""
+    validate(ledger)
     if baseline is not None:
         return _three_way_csv(ledger, text, baseline)
-    reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
-    headers = reader.fieldnames or []
+    headers, rows = _csv_rows(text)
     required = set(FIELDS[:6])
     if len(headers) != len(set(headers)) or not required.issubset(headers):
         raise LedgerError("CSV needs unique headers and all six required difference fields.")
@@ -40,7 +40,7 @@ def merge_csv(
     positions = {item["id"]: index for index, item in enumerate(merged["differences"])}
     seen: set[str] = set()
     changes: list[dict[str, Any]] = []
-    for line, row in enumerate(reader, 2):
+    for line, row in enumerate(rows, 2):
         if None in row or any(value is None for value in row.values()):
             raise LedgerError(f"CSV row {line} has a different number of cells than its header.")
         identifier = row["id"]
@@ -85,8 +85,7 @@ def _three_way_csv(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     validate(ledger)
     validate(baseline)
-    reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
-    headers = reader.fieldnames or []
+    headers, rows = _csv_rows(text)
     if len(headers) != len(set(headers)) or "id" not in headers or set(headers) - set(FIELDS):
         raise LedgerError("Baseline CSV needs unique supported headers including id.")
     bases = {item["id"]: item for item in baseline["differences"]}
@@ -96,7 +95,7 @@ def _three_way_csv(
     seen: set[str] = set()
     conflicts = []
     changes = []
-    for line, row in enumerate(reader, 2):
+    for line, row in enumerate(rows, 2):
         if None in row or any(value is None for value in row.values()):
             raise LedgerError(f"CSV row {line} has a different number of cells than its header.")
         identifier = row["id"]
@@ -208,3 +207,12 @@ function filter(){let count=0;for(const [item,article] of rows){const visible=(!
 const search=document.getElementById('search'),category=document.getElementById('category'),significance=document.getElementById('significance');
 for(const control of [search,category,significance])control.addEventListener('input',filter);filter();</script></html>"""
     )
+
+
+def _csv_rows(text: str) -> tuple[list[str], list[dict[str, Any]]]:
+    try:
+        reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")), strict=True)
+        headers = reader.fieldnames or []
+        return headers, list(reader)
+    except csv.Error as exc:
+        raise LedgerError(f"Malformed CSV: {exc}") from exc
