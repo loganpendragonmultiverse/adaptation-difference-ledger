@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adaptation-difference-ledger"
-version = "1.2.1"
+version = "1.2.2"
 description = "Record and compare structured differences between a source work and its adaptations."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,3 +28,7 @@ target-version = "py310"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=adaptation_ledger --cov-branch --cov-report=term-missing --cov-fail-under=90"
+
+[tool.setuptools.data-files]
+"share/doc/adaptation-difference-ledger" = ["README.md", "CHANGELOG.md", "DEVELOPMENT.md", "TESTING.md"]
+"share/doc/adaptation-difference-ledger/examples" = ["examples/ledger.json"]

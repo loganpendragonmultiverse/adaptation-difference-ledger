@@ -56,3 +56,11 @@ Add `--baseline baseline.json` to `--import-csv edited.csv --format json` for th
 ## Version 1.2.1: documentation correction
 
 Version 1.2.0 was released on October 15, 2026. Version 1.2.1 corrects its release labels without changing behavior. The original v1.2.0 tag and downloadable artifacts remain unchanged; use v1.2.1 for the corrected packaged documentation.
+
+## Version 1.2.2: reliable validation and packaged examples
+
+Schema versions must be integer `1`; IDs, titles and required descriptions must contain non-whitespace text. Typed adaptation/category/significance values and malformed quoted CSV produce actionable errors. Markdown renders authored HTML and formatting literally. Output creation exclusively reserves a new path, refusing existing files and dangling symbolic links. The wheel now includes the README, changelog, development/testing instructions and synthetic ledger example under `share/doc/adaptation-difference-ledger`.
+
+Run the full suite including `tests/test_gold.py`; test Markdown, JSON, HTML and CSV and a CSV merge with the installed wheel and source distribution. CSV is lossless data interchange: spreadsheet applications may interpret authored cells as formulas, so review untrusted exports as text. Source and baseline identity remain author supplied; no automated creative judgments are made.
+
+Paired report/merged outputs are reserved together before writing. A handled write failure attempts to remove only newly created outputs; an operating-system interruption or cleanup I/O failure can still leave partial output files. Structured Markdown values use single-line text; JSON, HTML and CSV preserve supplied newlines.
