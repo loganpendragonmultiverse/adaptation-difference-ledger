@@ -63,4 +63,4 @@ Schema versions must be integer `1`; IDs, titles and required descriptions must 
 
 Run the full suite including `tests/test_gold.py`; test Markdown, JSON, HTML and CSV and a CSV merge with the installed wheel and source distribution. CSV is lossless data interchange: spreadsheet applications may interpret authored cells as formulas, so review untrusted exports as text. Source and baseline identity remain author supplied; no automated creative judgments are made.
 
-Paired report/merged outputs are reserved together before writing. A handled write failure removes only newly created outputs; interruption by the operating system can still leave partial output files. Structured Markdown values use single-line text; JSON, HTML and CSV preserve supplied newlines.
+Paired report/merged outputs are reserved together before writing. A handled write failure attempts to remove only newly created outputs; an operating-system interruption or cleanup I/O failure can still leave partial output files. Structured Markdown values use single-line text; JSON, HTML and CSV preserve supplied newlines.

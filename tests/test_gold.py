@@ -102,3 +102,32 @@ def test_second_output_failure_rolls_back_only_new_merged_ledger(tmp_path: Path)
     assert not merged.exists()
     assert report.is_symlink() and not missing.exists()
     assert json.loads(source.read_text(encoding="utf-8")) == sample()
+
+
+def test_second_output_parent_failure_rolls_back_reservation(tmp_path: Path):
+    from adaptation_ledger.review import csv_export
+
+    source = tmp_path / "source.json"
+    source.write_text(json.dumps(sample()), encoding="utf-8")
+    incoming = tmp_path / "incoming.csv"
+    incoming.write_text(csv_export(sample()), encoding="utf-8")
+    blocked = tmp_path / "blocked"
+    blocked.write_text("preserve", encoding="utf-8")
+    merged, report = tmp_path / "merged.json", blocked / "report.md"
+    assert (
+        main(
+            [
+                str(source),
+                "--import-csv",
+                str(incoming),
+                "--merged-output",
+                str(merged),
+                "--output",
+                str(report),
+            ]
+        )
+        == 2
+    )
+    assert not merged.exists()
+    assert blocked.read_text(encoding="utf-8") == "preserve"
+    assert json.loads(source.read_text(encoding="utf-8")) == sample()
