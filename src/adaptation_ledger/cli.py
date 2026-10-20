@@ -37,7 +37,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if len({path.resolve() for path in targets}) != len(targets):
             raise LedgerError("Report and merged output must be different files.")
         for path in targets:
-            if path.exists():
+            if path.exists() or path.is_symlink():
                 raise LedgerError(f"Output already exists: {path}")
         preview = None
         if args.import_csv:
@@ -84,13 +84,15 @@ def _write_outputs(outputs: dict[Path, str]) -> None:
     reserved = []
     try:
         for path in outputs:
+            if path.is_symlink():
+                raise LedgerError(f"Output already exists: {path}")
             path.parent.mkdir(parents=True, exist_ok=True)
             handle = path.open("x", encoding="utf-8")
             reserved.append((path, handle, os.fstat(handle.fileno())))
         for path, handle, _ in reserved:
             handle.write(outputs[path])
             handle.flush()
-    except (OSError, UnicodeError):
+    except (LedgerError, OSError, UnicodeError):
         for path, handle, identity in reserved:
             handle.close()
             try:
